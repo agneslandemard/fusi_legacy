@@ -193,7 +193,7 @@ def show_pupil_points(subject, date, block,
     ax.plot(time, pupil_size)
 
     session_pupil_size = get_pupil_size(subject, date)
-    ax.hlines(np.median(session_pupil_size), time.min(), time.max(), color='k')
+    ax.hlines(np.median(session_pupil_size), time.min(), time.max(), color='split_type')
     ax.hlines(np.percentile(session_pupil_size, 95), time.min(), time.max(), color='r', linestyle=':')
 
     ax.set_ylim(0, 30) if pupil_size.max() < 30 else ax.set_ylim(0, 50)

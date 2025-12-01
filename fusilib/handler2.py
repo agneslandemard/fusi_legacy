@@ -20,7 +20,8 @@ import fusilib.config
 def hdf_load(flname, *args, **kwargs):
     '''
     '''
-    local_path = misc.uri_convert_uri2local(str(flname))
+    local_path=flname
+    #local_path = misc.uri_convert_uri2local(str(flname))
     return readers.hdf_load(local_path, *args, **kwargs)
 
 
@@ -112,8 +113,8 @@ class MetaSession(object):
             np.isnan(all_slice_indeces))]
         # check they are indeces
         assert np.allclose(np.asarray(all_slice_indeces,
-                           dtype=np.int), all_slice_indeces)
-        all_slice_indeces = np.asarray(all_slice_indeces, dtype=np.int)
+                           dtype=int), all_slice_indeces)
+        all_slice_indeces = np.asarray(all_slice_indeces, dtype=int)
         slice_blocks_dict = {slice_num: fusi_blocks[slice_blocks == slice_num]
                              for slice_num in all_slice_indeces}
         return slice_blocks_dict
@@ -139,7 +140,7 @@ class MetaSession(object):
         if 'invalid_blocks' in session_info:
             bad_blocks = session_info['invalid_blocks']
             blocks = np.asarray([t for t in blocks if t not in bad_blocks])
-        return blocks.astype(np.int)
+        return blocks.astype(int)
 
     @property
     def experiment_fusi_blocks(self):
@@ -152,8 +153,10 @@ class MetaSession(object):
             blocks = session_info['valid_blocks']
         if 'invalid_blocks' in session_info:
             bad_blocks = session_info['invalid_blocks']
+            if np.isnan(bad_blocks):
+                bad_blocks = []
             blocks = np.asarray([t for t in blocks if t not in bad_blocks])
-        return blocks.astype(np.int)
+        return blocks.astype(int)
 
     def fusi_blocks_iterator(self, blocks=None):
         '''
@@ -527,7 +530,11 @@ class MetaSession(object):
         # phy_path = full/path/to/thing
         if path is None:
             probe_paths = self.log_load_section(probe_name)
-            path = misc.uri_convert_uri2local(probe_paths['path_phy'])
+            if probe_paths['path_phy'][:3] == 'smb':
+                path = probe_paths['path_phy'][4:]
+            else:
+                path = misc.uri_convert_uri2local(probe_paths['path_phy'])
+
         return phy.ProbeHandler(path)
 
     def ephys_get_probe_nclusters(self, probe_name):
@@ -580,7 +587,7 @@ class MetaSession(object):
                                 acqlive=sync.analog2digital(
                                     pxinidaq_data[:, index_acqlive]),
                                 flipper=sync.analog2digital(
-                                    pxinidaq_data[:, index_flipper]),  # arduino flipper signal
+                                    pxinidaq_data[:, index_flipper]),  # arduino flipper_doric signal
                                 times=pxinidaq_time,
                                 sample_ratehz=pxinidaq_sample_ratehz)
         return pxinidaq
@@ -637,7 +644,7 @@ class MetaSession(object):
         slices2blocks = {k: v for k, v in zip(fusi_slices, blocks)}
         fusi_slices = [t for t in np.unique(fusi_slices) if not np.isnan(t)]
         masks = np.asarray([self.fusi_get_probe_slice_mask(
-            probe_name, 'slice%02i' % sdx, roi_file_name=roi_file_name).astype(np.int) for sdx in fusi_slices])
+            probe_name, 'slice%02i' % sdx, roi_file_name=roi_file_name).astype(int) for sdx in fusi_slices])
         master_mask = masks.sum(0) > 0
         return master_mask
 
@@ -778,7 +785,7 @@ class MetaSession(object):
         slicer[axis] = ystack_idx
 
         # Get relevant coronal slices and put them in the first dimension
-        dat = arr[tuple(slicer)].transpose((1, 2, 0)).astype(np.int)
+        dat = arr[tuple(slicer)].transpose((1, 2, 0)).astype(int)
 
         if remove_outside:
             for slicenum in range(self.fusi_nslices):
@@ -813,7 +820,7 @@ class MetaSession(object):
         slicer[axis] = ystack_idx
 
         # Get relevant coronal slices and put them in the first dimension
-        dat = arr[tuple(slicer)].transpose((1, 2, 0)).astype(np.int)
+        dat = arr[tuple(slicer)].transpose((1, 2, 0)).astype(int)
 
         if remove_outside:
             for slicenum in range(self.fusi_nslices):
@@ -893,8 +900,8 @@ class MetaSession(object):
         if ax is not None:
             for areaidx, area_contours in sorted(contours.items())[::-1]:
                 for contour in area_contours:
-                    ax.plot(contour[:, 1].astype(np.int),
-                            contour[:, 0].astype(np.int), linewidth=1,
+                    ax.plot(contour[:, 1].astype(int),
+                            contour[:, 0].astype(int), linewidth=1,
                             color='#%s' % area_indexes[areaidx] if color is None else color)
         return contours
 
@@ -1052,9 +1059,9 @@ class MetaSession(object):
 
         if hasattr(probe_object.tsv_cluster_info, 'cluster_id'):
             # Latest PHY changed the heade
-            depths[probe_object.tsv_cluster_info.cluster_id] = probe_object.tsv_cluster_info.depth.copy()
+            depths[probe_object.tsv_cluster_info.cluster_id.astype(int)] = probe_object.tsv_cluster_info.depth.copy()
         else:
-            depths[probe_object.tsv_cluster_info.id] = probe_object.tsv_cluster_info.depth.copy()
+            depths[probe_object.tsv_cluster_info.id.astype(int)] = probe_object.tsv_cluster_info.depth.copy()
         return depths
 
     def ephys_get_mua_masks(self, probe_name, mua_window_um=500, neuropix_size_um=3840):
@@ -1065,7 +1072,7 @@ class MetaSession(object):
         mua_nchunks = len(mua_depths)
 
         nclusters = self.ephys_get_probe_nclusters(probe_name)
-        mask = np.zeros((mua_nchunks, nclusters)).astype(np.bool)
+        mask = np.zeros((mua_nchunks, nclusters)).astype(bool)
 
         probe_object = self.ephys_get_probe_object(probe_name)
         # load cluster depths
@@ -1083,7 +1090,7 @@ class MetaSession(object):
         nclusters = self.ephys_get_probe_nclusters(probe_name)
         probe_object = self.ephys_get_probe_object(probe_name)
 
-        goods = np.zeros(nclusters).astype(np.bool)
+        goods = np.zeros(nclusters).astype(bool)
         # get good clusters
         try:
             probe_object.tsv_cluster_group()  # load
@@ -1109,7 +1116,7 @@ class MetaSession(object):
         data = {k: v for k, v in phy.yield_table_columns(fl, delimiter=',')}
 
         nclusters = self.ephys_get_probe_nclusters(probe_name)
-        goods = np.zeros(nclusters).astype(np.bool)
+        goods = np.zeros(nclusters).astype(bool)
 
         class_marker = data['putative_class'] == neuron_class
 
@@ -1122,7 +1129,7 @@ class MetaSession(object):
         nclusters = self.ephys_get_probe_nclusters(probe_name)
         probe_object = self.ephys_get_probe_object(probe_name)
 
-        goods = np.zeros(nclusters).astype(np.bool)
+        goods = np.zeros(nclusters).astype(bool)
         # get good clusters
         try:
             probe_object.tsv_cluster_group()  # load
@@ -1134,7 +1141,7 @@ class MetaSession(object):
             mask = probe_object.tsv_cluster_info.group != 'noise'
             good_clusters = probe_object.tsv_cluster_info.id[mask]
 
-        goods[good_clusters] = True
+        goods[good_clusters.astype(int)] = True
         return goods
 
     def get_block(self, block_number=2):
@@ -1265,7 +1272,7 @@ class MetaSession(object):
             if roi_name is not None:
                 if 'probe' in roi_name:
                     mask = subject_block.fusi_get_probe_slice_mask(roi_name)
-                    data = data[..., mask.astype(np.bool)]
+                    data = data[..., mask.astype(bool)]
                 else:
                     raise ValueError('Unknown fUSi mask: %s' % roi_name)
             slice_times.append(times)
@@ -1439,7 +1446,7 @@ class MetaSession(object):
                     if mirrored:
                         # CONTROL: mirror and flip mask
                         mask = mask[::-1, ::-1]
-                    fusi_data = fusi_data[..., mask.astype(np.bool)]
+                    fusi_data = fusi_data[..., mask.astype(bool)]
                 elif (('probe' in roi_name) or ('outcenter' in roi_name)) and isinstance(freq_cutoffhz, (tuple, list)):
                     # data is already masked
                     pass
@@ -1717,6 +1724,7 @@ class MetaBlock(MetaSession):
         '''
         spike_times, spike_clusters = self.ephys_get_probe_data(probe_name)
         nclusters = self.ephys_get_probe_nclusters(probe_name)
+        # nclusters = len(np.unique(spike_clusters))
         if good_clusters is None:
             good_clusters = self.ephys_get_good_clusters(probe_name)
         cluster_depths = self.ephys_get_cluster_depths(probe_name)
@@ -1868,7 +1876,7 @@ class MetaBlock(MetaSession):
         fl = self.mk_filename_for_localdb(
             'fusi_outsidebrain_roi.hdf', subfolder='fusi')
         mask = hdf_load(str(fl), 'outsidebrain_mask', verbose=verbose)
-        return mask.astype(np.bool)
+        return mask.astype(bool)
 
     def fusi_get_hemisphere_mask(self, hemisphere, mask_inside_brain=True):
         '''Get a mask of the left or right hemisphere:
@@ -1896,7 +1904,7 @@ class MetaBlock(MetaSession):
             'fusi_midline_roi.hdf', subfolder='fusi')
         # name was saved incorrectly =S
         mask = hdf_load(str(fl), 'outsidebrain_mask')
-        return mask.astype(np.bool)
+        return mask.astype(bool)
 
     def fusi_get_raw_data_object(self, dataroot='.', nmax=1):
         '''
@@ -1918,7 +1926,7 @@ class MetaBlock(MetaSession):
     def fusi_get_heartbeat_estimate(self, key='filtered_vascular_timecourse_raw', clip=True):
         '''
         '''
-        fl = self.block_path.joinpath('fusi', 'physio_hearbeat_estimate.hdf')
+        fl = self.block_path.joinpath('fusi', 'physio_hearbeat_esate.hdf')
         physio = hdf_load(fl, key)
 
         fusi_loader = self.fusi_get_raw_data_object()
@@ -2050,17 +2058,41 @@ class MetaBlock(MetaSession):
         # load the preprocessed fusi data
         ########################################
         if np.isscalar(freq_cutoffhz):
-            assert freq_cutoffhz == 15  # UNDEFINED STORAGE FOR OTHERS
+            #assert freq_cutoffhz == 15  # UNDEFINED STORAGE FOR OTHERS
+            agnes_modif =False
+            if agnes_modif:
+                pattern = '{yyyymmdd}_sess{blocknum}_{dt}ms_window{window}ms_svddrop{ndropped}.hdf'
+                flname = pattern.format(yyyymmdd=misc.date_tuple2number(self.date_tuple),
+                                        blocknum='%02i' % self.block_number,
+                                        dt='%03i' % dt_ms,
+                                        window='%04i' % window_ms,
+                                        ndropped=svddrop if svddrop is None else '%03i' % svddrop)
+                if not os.path.isfile(self.block_path.joinpath('fusi', flname)):
+                    pattern = '{yyyymmdd}_sess{blocknum}_{dt}ms_window{window}ms_svddrop{ndropped}_highpasscutoff%01iHz.hdf' % freq_cutoffhz
+                    flname = pattern.format(yyyymmdd=misc.date_tuple2number(self.date_tuple),
+                                            blocknum='%02i' % self.block_number,
+                                            dt='%03i' % dt_ms,
+                                            window='%04i' % window_ms,
+                                            ndropped='%03i' % svddrop)
 
-            if (svddrop != 5 and dt_ms == 50) or (svddrop != 15 and dt_ms == 300):
+            elif((svddrop != 5 and dt_ms == 50) or (svddrop != 15 and dt_ms == 300) ):
                 pattern = '{yyyymmdd}_sess{blocknum}_{dt}ms_window{window}ms_svddrop{ndropped}_highpasscutoff%0.02fHz.hdf' % freq_cutoffhz
                 flname = pattern.format(yyyymmdd=misc.date_tuple2number(self.date_tuple),
                                         blocknum='%02i' % self.block_number,
                                         dt='%03i' % dt_ms,
                                         window='%04i' % window_ms,
                                         ndropped=svddrop if svddrop is None else '%03i' % svddrop)
-            else:
+
+            elif freq_cutoffhz == 15:
                 pattern = '{yyyymmdd}_sess{blocknum}_{dt}ms_window{window}ms_svddrop{ndropped}.hdf'
+                flname = pattern.format(yyyymmdd=misc.date_tuple2number(self.date_tuple),
+                                        blocknum='%02i' % self.block_number,
+                                        dt='%03i' % dt_ms,
+                                        window='%04i' % window_ms,
+                                        ndropped='%03i' % svddrop)
+
+            else:
+                pattern = '{yyyymmdd}_sess{blocknum}_{dt}ms_window{window}ms_svddrop{ndropped}_highpasscutoff%02iHz.hdf' % freq_cutoffhz
                 flname = pattern.format(yyyymmdd=misc.date_tuple2number(self.date_tuple),
                                         blocknum='%02i' % self.block_number,
                                         dt='%03i' % dt_ms,
@@ -2187,7 +2219,7 @@ class MetaBlock(MetaSession):
     def fusi_get_outbrainroi_mask(self):
         '''
         '''
-        probe_mask = self.fusi_get_probe_master_mask('probe00').astype(np.bool)
+        probe_mask = self.fusi_get_probe_master_mask('probe00').astype(bool)
         zdim, xdim = probe_mask.nonzero()
         length = np.sqrt((zdim.max() - zdim.min())**2 +
                          (xdim.max() - xdim.min())**2)

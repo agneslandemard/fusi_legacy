@@ -2,7 +2,7 @@ import pandas
 import numpy as np
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 
-from fusilib.config import DATA_ROOT
+from fusilib.config import DATA_ROOT, DATA_ROOT2
 
 reference_space_key = 'annotation/ccf_2017'
 resolution = 25
@@ -14,7 +14,7 @@ structureid2name = tree.get_name_map()
 
 
 TABLE = pandas.read_csv(
-    f'{DATA_ROOT}/extras/structure_tree_safe_2017.csv')
+    f'{DATA_ROOT2}/extras/structure_tree_safe_2017.csv')
 
 HPC = 'Hippocampal formation'
 V1 = 'Visual areas'
@@ -50,7 +50,7 @@ def mk_area_mask_from_aligned(allenccf_areas, candidate, verbose=True):
 
     candidateid = tree.get_structures_by_name([candidate])[0]['id']
 
-    mask = np.zeros(allenccf_areas.shape, dtype=np.bool)
+    mask = np.zeros(allenccf_areas.shape, dtype=bool)
     uareas = np.unique(allenccf_areas)
     uareas = uareas[uareas != 0]  # remove root node
     for area_index in uareas:

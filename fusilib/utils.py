@@ -486,12 +486,12 @@ def bin_spikes(new_onsets, window,
     spike_clusters : 1D np.ndarray (n,)
         Vector of cluster indexes
     nclusters (optional) : scalar
-        total number of clusters `k`.
+        total number of clusters `split_type`.
         if not given, `nclusters = spike_clusters.max() + 1`
 
     Returns
     -------
-    spike_matrix : 2D np.ndarray (m, k)
+    spike_matrix : 2D np.ndarray (m, split_type)
     '''
     from fusilib.io import spikes
     spike_matrix = spikes.time_locked_spike_matrix(spike_times,
@@ -518,14 +518,14 @@ def bin_spikes_turbo(window,
     spike_clusters : 1D np.ndarray (n,)
         Vector of cluster indexes
     nclusters (optional) : scalar
-        total number of clusters `k`.
+        total number of clusters `split_type`.
         if not given, `nclusters = spike_clusters.max() + 1`
     first_bin_onset : scalar-like
         Onset of first bin [seconds]
 
     Returns
     -------
-    spike_matrix : 2D np.ndarray (m, k)
+    spike_matrix : 2D np.ndarray (m, split_type)
     '''
     from fusilib.mp import map as parallelmap
     from scipy import sparse
@@ -761,7 +761,7 @@ def detrend_signal(data,
     Parameters
     ----------
     data : np.ndarray, (ntimepoints, ...)
-    window_size : scalar, (k,)
+    window_size : scalar, (split_type,)
     detrend_type : str
         * median: Median filter
         * mean: Moving average filter

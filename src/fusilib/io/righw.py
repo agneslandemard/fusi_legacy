@@ -1,10 +1,8 @@
 import os
 import pathlib
 import itertools
-
 import numpy as np
 from fusilib.config import DATA_ROOT
-
 from fusilib.utils import band_pass_signal
 
 

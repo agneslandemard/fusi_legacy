@@ -264,7 +264,7 @@ def event_related_responses(spike_times,
     dt : float-like
         Bin size in [secs]
 
-    nclusters : optional, int (`k`)
+    nclusters : optional, int (`split_type`)
         If None, defaults to the maximum cluster ID.
         If int, assumes this is the maximum number of clusters
     dtype : optional
@@ -272,8 +272,8 @@ def event_related_responses(spike_times,
 
     Returns
     -------
-    spike_matrix : 3D np.ndarray (m, t, k)
-        Matrix containing spike counts for all `k` clusters,
+    spike_matrix : 3D np.ndarray (m, t, split_type)
+        Matrix containing spike counts for all `split_type` clusters,
         for all `m` events for `t` samples after event onset.
     '''
     # setup the data
@@ -346,7 +346,7 @@ def event_related_responses_from_sparse(spike_times,
     dt : float-like
         Bin size in [secs]
 
-    nclusters : optional, int (`k`)
+    nclusters : optional, int (`split_type`)
         If None, defaults to the maximum cluster ID.
         If int, assumes this is the maximum number of clusters
     dtype : optional
@@ -354,8 +354,8 @@ def event_related_responses_from_sparse(spike_times,
 
     Returns
     -------
-    spike_matrix : 3D np.ndarray (m, t, k)
-        Matrix containing spike counts for all `k` clusters,
+    spike_matrix : 3D np.ndarray (m, t, split_type)
+        Matrix containing spike counts for all `split_type` clusters,
         for all `m` events for `t` samples after event onset.
     '''
     # setup the data
@@ -417,7 +417,7 @@ def time_locked_spike_matrix(spike_times, spike_clusters,
         Bin size in [seconds].
         Duration for all events or for each event in [seconds]
 
-    nclusters : optional, int (`k`)
+    nclusters : optional, int (`split_type`)
         If None, defaults to the maximum cluster ID.
         If int, assumes this is the maximum number of clusters
     dtype : optional
@@ -425,8 +425,8 @@ def time_locked_spike_matrix(spike_times, spike_clusters,
 
     Returns
     -------
-    spike_matrix : 2D np.ndarray (m, k)
-        Matrix containing spike counts for all `k` clusters.
+    spike_matrix : 2D np.ndarray (m, split_type)
+        Matrix containing spike counts for all `split_type` clusters.
     '''
     sparse_matrix = sparse_matrix_from_cluster_times(spike_times,
                                                      spike_clusters,

@@ -295,6 +295,9 @@ def uri_convert_uri2local(uripath):
         server, domain = url_object.netloc.split('.')[:2]
         path = path[1:] if path[0] == '/' else path
         path = os.path.join('/', domain, server, path)
+    else:
+        return uripath
+
     return path
 
 

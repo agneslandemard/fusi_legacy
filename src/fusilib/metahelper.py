@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from scipy.stats import zscore
 
@@ -39,7 +41,7 @@ EXACT_LOCATION = False
 ##############################
 # helper fucntions
 ##############################
-
+extra_path = r'E:\SharedData\fUSi-ephys\Subjects'
 
 def get_population_hrf(area_name, condition, negation=False, normalize=True, t0=0):
     '''
@@ -56,15 +58,23 @@ def get_population_hrf(area_name, condition, negation=False, normalize=True, t0=
     t0 : scalar
         First time point of HRF
     '''
-    from fusilib.config import DATA_ROOT
+    from fusilib.config import DATA_ROOT, DATA_ROOT2
 
     assert condition in STIMULUS_CONDITIONS
-    if negation:
-        HRF, hrf_times = readers.hdf_load('{path}/extras/HRFs_not{stim}.hdf'.format(
-            stim=condition, path=DATA_ROOT), [area_name, 'times'])
-    else:
-        HRF, hrf_times = readers.hdf_load('{path}/extras/HRFs_only{stim}.hdf'.format(
-            stim=condition, path=DATA_ROOT), [area_name, 'times'])
+    try:
+        if negation:
+            HRF, hrf_times = readers.hdf_load('{path}/extras/HRFs_not{stim}.hdf'.format(
+                stim=condition, path=DATA_ROOT2), [area_name, 'times'])
+        else:
+            HRF, hrf_times = readers.hdf_load('{path}/extras/HRFs_only{stim}.hdf'.format(
+                stim=condition, path=DATA_ROOT2), [area_name, 'times'])
+    except Exception as err:
+        print(err)
+        print('loading another HRF')
+        files = [f for f in os.listdir('{path}/extras/'.format(path=extra_path)) if 'HRF' in f]
+        HRF, hrf_times = readers.hdf_load('{path}/extras/{stim}'.format(
+                stim=files[0], path=DATA_ROOT2), [area_name, 'times'])
+
     hrf_valid = hrf_times >= t0
     hrf_times = hrf_times[hrf_valid]
     HRF = HRF[:, hrf_valid]
@@ -154,6 +164,9 @@ def get_fusi_roi_mask_within_npxprobe(subject_block,
                                       criterion=CRITERION,
                                       hrf_convolve=False,
                                       fusi_mirror=False,
+                                      nsvd=15,
+                                      cutoff=15,
+                                      window_ms=600,
                                       temporal_filter='none',
                                       # slice_widthmm=0.5,
                                       temporal_filter_window=35):
@@ -203,7 +216,8 @@ def get_fusi_roi_mask_within_npxprobe(subject_block,
         return None
 
     # Get fUSI data
-    original_fusi_times, original_fusi_data = subject_block.fusi_get_data()
+    original_fusi_times, original_fusi_data = subject_block.fusi_get_data(dt_ms=300, window_ms=window_ms, svddrop=nsvd,
+                                                                          freq_cutoffhz=cutoff)
 
     fusi_times, fusi_trace = detrend_fusi(original_fusi_times, original_fusi_data, mask=pmask,
                                           temporal_filter=temporal_filter, population_mean=True,
@@ -243,3 +257,97 @@ def get_fusi_roi_mask_within_npxprobe(subject_block,
         fusi_trace = zscore(fusi_trace[hrfsize:])
 
     return fusi_times, fusi_trace, fr
+
+
+
+def get_fusi_roi_mask_within_npxprobe_full_spikes(subject_block,
+                                      probe_name,
+                                      allen_area_name,
+                                      criterion=CRITERION,
+                                      hrf_convolve=False,
+                                      fusi_mirror=False,
+                                      nsvd=15,
+                                      cutoff=15,
+                                      window_ms=600,
+                                      dt_ms=300,
+                                      temporal_filter='none',
+                                      # slice_widthmm=0.5,
+                                      temporal_filter_window=35):
+    '''
+    '''
+    from fusilib import experiments, allen
+    # 2D Projection of NPx probe in fUSI
+    # , 'fusi_%s_section_in_probe_roi.hdf'%FUSI_PROBE_MASK_NAME)
+    probe_mask = subject_block.fusi_get_probe_master_mask(probe_name)
+
+    brain_mask = np.logical_not(subject_block.fusi_get_outsidebrain_mask())
+    pmask = np.logical_and(brain_mask, probe_mask)
+
+
+    # ROI voxels in Allen Atlas
+    allenccf_areas = subject_block.meta_session.fusi_get_allenccf_slices(
+        subject_block.slice_number)
+    area_mask = allen.mk_area_mask_from_aligned(
+        allenccf_areas, allen_area_name, verbose=False)
+
+    pmask = np.logical_and(area_mask, pmask)
+
+    if fusi_mirror is True:
+        # Mirror 2D projection for bilateral analysis
+        # (This way b/c the probe track might not hit the area if mirrored first)
+        pmask = pmask[:, ::-1]
+
+    # 3D projection of NPx probe in fUSI
+    # slice_position_mm = subject_block.meta_session.fusi_slice_position(subject_block.slice_number)
+    slice_search_widthmm = subject_block.analysis_slicewidth_search
+
+    fusi_probe_depth, fusi_probe_mask, probe_limits_mm = subject_block.meta_session.fusi_get_slice_probedepth_and_voxels(
+        # subject_block.slice_number, probe_name, widthmm=0.8 if slice_position_mm==0 else slice_widthmm)
+        subject_block.slice_number, probe_name, widthmm=slice_search_widthmm)
+
+    # Percentage of 3D NPx probe mask inside the Allen Mask
+    pct_probe_in_roi = (np.logical_and(
+        fusi_probe_mask, pmask).sum()/fusi_probe_mask.sum())*100
+
+    # Check that the probe actually touches the Allen area of interset at this slice
+    # if (pct_probe_in_roi < criterion) and (fusi_mirror is False):
+    #     print('%0.02f<%0.1f%% of Neuropixels %s is in %s in slice=%i\nSkipping %s: ' % (pct_probe_in_roi,
+    #                                                                                     criterion,
+    #                                                                                     probe_name,
+    #                                                                                     allen_area_name,
+    #                                                                                     subject_block.slice_number,
+    #                                                                                     subject_block))
+    #
+    #     return None
+    # pmask = area_mask
+    # Get fUSI data
+
+    original_fusi_times, original_fusi_data = subject_block.fusi_get_data(dt_ms=dt_ms, window_ms=window_ms, svddrop=nsvd,
+                                                                          freq_cutoffhz=cutoff)
+
+
+    fusi_times, fusi_trace = detrend_fusi(original_fusi_times, original_fusi_data, mask=pmask,
+                                           temporal_filter=temporal_filter, population_mean=True,
+                                          temporal_filter_window=temporal_filter_window)
+
+
+    fusi_trace = zscore(fusi_trace)
+
+    # Get ephys data
+    probe_roi_name = PROBE_ROI_NAMES[allen_area_name]
+    ephys_probe = subject_block.ephys_get_probe_spikes_object(probe_name)
+    probe_mask_min, probe_mask_max = \
+        experiments.ephys_roi_markers[subject_block.meta_session.subject_name][
+            subject_block.meta_session.session_name][probe_name][probe_roi_name]
+
+    # Get firing rate within mask
+    npx_times = np.arange(fusi_times[0], fusi_times[-1], 0.1)
+    spike_matrix = ephys_probe.time_locked_spike_matrix(npx_times, dt=0.1)
+    valid_clusters = np.logical_and(ephys_probe.cluster_depths >= probe_mask_min,
+                                    ephys_probe.cluster_depths < probe_mask_max)
+    valid_clusters = np.logical_and(valid_clusters, ephys_probe.good_clusters)
+    fr = spike_matrix[:, valid_clusters]
+
+
+    return fusi_times, fusi_trace, npx_times, fr
+

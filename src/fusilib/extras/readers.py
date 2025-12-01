@@ -26,7 +26,7 @@ import shutil
 from warnings import warn
 
 import h5py
-import tables
+#4import tables
 
 import numpy as np
 from scipy.io import loadmat as sioloadmat

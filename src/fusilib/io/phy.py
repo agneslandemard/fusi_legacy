@@ -51,14 +51,16 @@ def yield_table_columns(textfile, delimiter='\t', dtype='S'):
     for colidx, column_name in enumerate(column_names):
         column_data = table[1:, colidx]
         try:
-            column_data = np.asarray(column_data, dtype=np.float)
-            if np.allclose(column_data, np.asarray(column_data, dtype=np.int)):
-                column_data = column_data.astype(np.int)
+            # Use built-in types because NumPy removed np.float and np.int.
+            column_data = np.asarray(column_data, dtype=float)
+            if np.allclose(column_data, np.asarray(column_data, dtype=int)):
+                column_data = column_data.astype(int)
         except:
             # must be string
             column_data = [t.decode() for t in table[1:,colidx]]
             # maybe is full of booleans?
-            if np.alltrue([can_bool(t) for t in column_data]):
+            # Use np.all because NumPy 2 removed the np.alltrue alias.
+            if np.all([can_bool(t) for t in column_data]):
                 column_data = [str2bool(t) for t in column_data]
             # cast to np.ndarray
             column_data = np.asarray(column_data)

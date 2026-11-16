@@ -779,7 +779,8 @@ class MetaSession(object):
         ystack_nslices = len(ystack_mm)
         axis = np.asarray([idx == ystack_nslices for idx in arr.shape])
         assert axis.sum() == 1
-        axis = int(axis.nonzero()[0])
+        # Extract a scalar explicitly for compatibility with newer NumPy versions.
+        axis = axis.nonzero()[0].item()
 
         slicer = [slice(None)]*arr.ndim
         slicer[axis] = ystack_idx
@@ -814,7 +815,8 @@ class MetaSession(object):
         ystack_nslices = len(ystack_mm)
         axis = np.asarray([idx == ystack_nslices for idx in arr.shape])
         assert axis.sum() == 1
-        axis = int(axis.nonzero()[0])
+        # Extract a scalar explicitly for compatibility with newer NumPy versions.
+        axis = axis.nonzero()[0].item()
 
         slicer = [slice(None)]*arr.ndim
         slicer[axis] = ystack_idx
@@ -951,7 +953,8 @@ class MetaSession(object):
         # determine volume axis for slices
         axis = np.asarray([idx == ystack_nslices for idx in arr.shape])
         assert axis.sum() == 1
-        axis = int(axis.nonzero()[0])
+        # Extract a scalar explicitly for compatibility with newer NumPy versions.
+        axis = axis.nonzero()[0].item()
 
         axis_nvox = arr.shape[axis]
         axis_mm = axis_nvox*volxyzmm[axis]
